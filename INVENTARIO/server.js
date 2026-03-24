@@ -110,10 +110,18 @@ async function initDb() {
   try {
     await pool.query(createUsersTable);
     await pool.query(createProductsTable);
-    // Asegurar columna características si ya existe tabla creada de antes
-    await pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS caracteristicas TEXT");
+
+    // Asegurar columna características si ya existe tabla creada de antes (MySQL 8 no soporta IF NOT EXISTS en ADD COLUMN)
+    const [colRows] = await pool.query(
+      "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'products' AND COLUMN_NAME = 'caracteristicas'",
+      [dbConfig.database]
+    );
+    if (colRows.length === 0) {
+      await pool.query("ALTER TABLE products ADD COLUMN caracteristicas TEXT");
+    }
+
     await pool.query(createReservationsTable);
-    
+
     // Crear usuario admin por defecto si no existe
     const [existingUsers] = await pool.query('SELECT * FROM users WHERE username = ?', ['admin']);
     if (existingUsers.length === 0) {
