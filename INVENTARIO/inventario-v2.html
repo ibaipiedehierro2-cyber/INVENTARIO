@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MGEP - Gestión de Productos </title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="inventario-v2.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-wrapper" style="justify-content: center; display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                <img src="logo/logo.png" alt="Logo Mondragón" class="logo-img" style="width: 90px; height: auto;" />
+                <div>
+                    <h1>MGEP - Gestión de Productos</h1>
+                    <p style="color: var(--primary); font-weight: 600; font-size: 0.9em;">Goi Eskola Politeknikoa</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-total">0</div>
+                <div class="stat-label">Productos Únicos</div>
+            </div>
+            <div class="stat-card available">
+                <div class="stat-number" id="stat-disponibles">0</div>
+                <div class="stat-label">Disponibles</div>
+            </div>
+            <div class="stat-card borrowed">
+                <div class="stat-number" id="stat-prestados">0</div>
+                <div class="stat-label">Prestados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-cantidad">0</div>
+                <div class="stat-label">Cantidad Total</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <input
+                type="text"
+                class="search-bar"
+                id="searchInput"
+                placeholder="🔍 Busca un artículo por nombre..."
+            />
+
+            <div class="filter-section">
+                <div class="filter-label">Estado:</div>
+                <div class="filter-buttons" id="estadoFilters">
+                    <button class="filter-btn active" onclick="setFiltro('estado', 'todos', this)">
+                        Todos
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('estado', 'disponible', this)">
+                        Disponibles
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('estado', 'prestado', this)">
+                        Prestados
+                    </button>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-label">Categoría:</div>
+                <div class="filter-buttons" id="categoryFilters">
+                    <button class="filter-btn active" onclick="setFiltro('categoria', 'todas', this)" id="cat-todas">
+                        Todas
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('categoria', 'componentes', this)" id="cat-componentes">
+                        🔧 Componentes
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('categoria', 'perifericos', this)" id="cat-perifericos">
+                        🖱️ Periféricos
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('categoria', 'monitores', this)" id="cat-monitores">
+                        🖥️ Monitores
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('categoria', 'cables', this)" id="cat-cables">
+                        🔌 Cables
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('categoria', 'software', this)" id="cat-software">
+                        💾 Software
+                    </button>
+                    <button class="filter-btn" onclick="setFiltro('categoria', 'accesorios', this)" id="cat-accesorios">
+                        📦 Accesorios
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="toggleFormBtn" onclick="toggleForm()">
+                <span style="font-size: 1.3em;">+</span> Añadir Producto
+            </button>
+            <button class="btn btn-secondary" id="toggleViewBtn" onclick="toggleView()" style="margin-top: 0;">
+                🗂️ Cambiar vista Tabla/Tarjetas
+            </button>
+        </div>
+
+        <!-- Form -->
+        <div class="form-container hidden" id="formContainer">
+            <div class="form-group">
+                <label class="form-label">Nombre del producto</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="inputNombre"
+                    placeholder="Ej: RTX 4090, Monitor 27\", Teclado Mecánico..."
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Cantidad</label>
+                <input
+                    type="number"
+                    class="form-input"
+                    id="inputCantidad"
+                    value="1"
+                    min="1"
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Número de serie</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="inputSerie"
+                    placeholder="Ej: SN123456789, ABC-001, 987654321..."
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Categoría</label>
+                <select class="form-select" id="inputCategoria">
+                    <option value="componentes">🔧 Componentes</option>
+                    <option value="perifericos">🖱️ Periféricos</option>
+                    <option value="monitores">🖥️ Monitores</option>
+                    <option value="cables">🔌 Cables</option>
+                    <option value="software">💾 Software</option>
+                    <option value="accesorios">📦 Accesorios</option>
+                </select>
+            </div>
+
+            <button class="btn btn-success" onclick="addItem()" style="margin-top: 10px;">
+                <span>✓</span> Guardar producto
+            </button>
+        </div>
+
+        <!-- Items Container -->
+        <div class="items-container" id="itemsContainer"></div>
+
+        <!-- Table View -->
+        <div class="table-view hidden" id="tableView" style="margin-top: 20px;">
+            <h2>Vista de tabla de productos</h2>
+            <div class="table-wrapper">
+                <table class="product-table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Serie</th>
+                            <th>Total</th>
+                            <th>Disponible</th>
+                            <th>Reservado</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <h2 style="margin-top: 26px;">Reservas activas</h2>
+            <div class="table-wrapper">
+                <table class="reservations-table" id="reservationsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th>Usuario</th>
+                            <th>Cantidad</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+            <div class="empty-state-icon">📭</div>
+            <p>No hay productos aún. ¡Añade tu primer componente!</p>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="loanModal">
+        <div class="modal">
+            <h2>Registrar Préstamo</h2>
+            <div class="modal-form">
+                <div class="form-group">
+                    <label class="form-label">¿A quién se lo prestas?</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="loanName"
+                        placeholder="Nombre de la persona"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fecha del préstamo</label>
+                    <input
+                        type="date"
+                        class="form-input"
+                        id="loanDate"
+                    />
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="confirmLoan()">
+                        ✓ Confirmar
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeLoanModal()">
+                        ✕ Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script defer src="inventario-v2.js"></script>
+</body>
+</html>
