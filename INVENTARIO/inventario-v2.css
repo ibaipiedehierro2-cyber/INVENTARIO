@@ -289,10 +289,17 @@ textarea.form-input {
 }
 
 .item-title {
+    width: 100%;
+    text-align: center;
     font-size: 1.15rem;
     font-weight: 700;
     color: var(--text-dark);
 }
+
+.item-header .item-badge {
+    margin-left: auto;
+}
+
 
 .item-badge {
     font-size: 0.75rem;
