@@ -1,10 +1,15 @@
-﻿let products = [];
+﻿// ==================== VARIABLES GLOBALES ====================
+let products = [];
 let reservations = [];
+let users = [];
+let currentUser = null;
+let authToken = null;
 let currentFilter = 'todos';
 let currentCategoryFilter = 'todas';
 let currentSearch = '';
 let loanProductId = null;
 let viewMode = 'cards';
+let selectedUserId = null;
 
 const emojiMap = {
     componentes: '🔧',
@@ -15,32 +20,161 @@ const emojiMap = {
     accesorios: '📦'
 };
 
+// ==================== AUTENTICACIÓN ====================
+
+async function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    const errorDiv = document.getElementById('loginError');
+
+    errorDiv.classList.add('hidden');
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            errorDiv.textContent = err.error || 'Error al iniciar sesión';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        const data = await res.json();
+        authToken = data.token;
+        currentUser = data.user;
+
+        // Guardar en localStorage
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+        // Mostrar app
+        showMainApp();
+        await refreshData();
+    } catch (error) {
+        console.error(error);
+        errorDiv.textContent = 'Error de conexión';
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+function handleLogout() {
+    authToken = null;
+    currentUser = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    
+    // Limpiar formularios
+    document.getElementById('loginForm').reset();
+    document.getElementById('loginError').classList.add('hidden');
+    
+    // Mostrar pantalla de login
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('mainApp').classList.add('hidden');
+}
+
+function showMainApp() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    
+    // Mostrar información del usuario
+    document.getElementById('userDisplayName').textContent = currentUser.username;
+    const rolText = {
+        admin: '👑 Administrador',
+        user: '👤 Usuario',
+        readonly: '👁️ Solo lectura'
+    };
+    document.getElementById('userDisplayRole').textContent = rolText[currentUser.rol] || currentUser.rol;
+    
+    // Mostrar panel admin solo si es admin
+    const adminPanelBtn = document.getElementById('adminPanelBtn');
+    if (currentUser.rol === 'admin') {
+        adminPanelBtn.style.display = 'block';
+    } else {
+        adminPanelBtn.style.display = 'none';
+    }
+
+    // Desabilitar/habilitar botones según rol
+    updateFormAccess();
+}
+
+function updateFormAccess() {
+    const toggleFormBtn = document.getElementById('toggleFormBtn');
+    
+    // Solo admin y user pueden crear productos
+    if (['admin', 'user'].includes(currentUser.rol)) {
+        toggleFormBtn.style.display = 'block';
+    } else {
+        toggleFormBtn.style.display = 'none';
+    }
+}
+
 function getCategoryEmoji(category) {
     return emojiMap[category] || '📦';
 }
 
+// ==================== API CALLS CON AUTENTICACIÓN ====================
+
+async function apiCall(url, method = 'GET', body = null) {
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        }
+    };
+
+    if (body) {
+        options.body = JSON.stringify(body);
+    }
+
+    const res = await fetch(url, options);
+    
+    if (res.status === 401) {
+        // Token expirado o inválido
+        handleLogout();
+        throw new Error('Sesión expirada');
+    }
+
+    return res;
+}
+
 async function fetchProducts() {
-    const res = await fetch('/api/products');
-    products = await res.json();
+    try {
+        const res = await apiCall('/api/products');
+        if (!res.ok) throw new Error('Error al obtener productos');
+        products = await res.json();
+    } catch (error) {
+        console.error('Error fetchProducts:', error);
+    }
 }
 
 async function fetchReservations() {
-    const res = await fetch('/api/reservations');
-    reservations = await res.json();
+    try {
+        const res = await apiCall('/api/reservations');
+        if (!res.ok) throw new Error('Error al obtener reservaciones');
+        reservations = await res.json();
+    } catch (error) {
+        console.error('Error fetchReservations:', error);
+    }
 }
 
-function toggleView() {
-    viewMode = viewMode === 'cards' ? 'table' : 'cards';
-    document.getElementById('itemsContainer').classList.toggle('hidden', viewMode === 'table');
-    document.getElementById('tableView').classList.toggle('hidden', viewMode === 'cards');
-    document.getElementById('toggleViewBtn').textContent = viewMode === 'table' ? '🖼️ Vista Tarjetas' : '🗂️ Vista Tabla';
-    render();
+async function fetchUsers() {
+    try {
+        const res = await apiCall('/api/users');
+        if (!res.ok) throw new Error('Error al obtener usuarios');
+        users = await res.json();
+        renderUsersList();
+    } catch (error) {
+        console.error('Error fetchUsers:', error);
+    }
 }
 
-function setLoanDateToToday() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('loanDate').value = today;
-}
+// ==================== FUNCIONES DE UI ====================
 
 function toggleForm() {
     const form = document.getElementById('formContainer');
@@ -56,6 +190,24 @@ function toggleForm() {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-secondary');
     }
+}
+
+function toggleAdminPanel() {
+    const adminPanel = document.getElementById('adminPanel');
+    adminPanel.classList.toggle('hidden');
+}
+
+function setLoanDateToToday() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('loanDate').value = today;
+}
+
+function toggleView() {
+    viewMode = viewMode === 'cards' ? 'table' : 'cards';
+    document.getElementById('itemsContainer').classList.toggle('hidden', viewMode === 'table');
+    document.getElementById('tableView').classList.toggle('hidden', viewMode === 'cards');
+    document.getElementById('toggleViewBtn').textContent = viewMode === 'table' ? '🖼️ Vista Tarjetas' : '🗂️ Vista Tabla';
+    render();
 }
 
 function setFiltro(tipo, filtro, targetBtn) {
@@ -90,6 +242,8 @@ function showEmptyState(show) {
     document.getElementById('emptyState').style.display = show ? 'block' : 'none';
 }
 
+// ==================== RENDER ====================
+
 function render() {
     const filtered = getFilteredProducts();
 
@@ -120,6 +274,11 @@ function render() {
     filtered.forEach(item => {
         const card = document.createElement('div');
         card.className = 'item-card';
+        
+        // Solo mostrar botón eliminar si es admin
+        const deleteBtn = currentUser.rol === 'admin' ? 
+            `<button class="btn btn-danger" onclick="deleteItem(${item.id})">🗑️ Eliminar</button>` : '';
+        
         card.innerHTML = `
             <div class="item-header">
                 <div class="item-title">${item.nombre}</div>
@@ -133,13 +292,23 @@ function render() {
                 <div class="info-row"><span class="info-label">Serie:</span><span>${item.serie || '—'}</span></div>
             </div>
             <div class="item-actions">
-                <button class="btn btn-secondary" onclick="startLoan(${item.id})" ${item.cantidad_disponible <= 0 ? 'disabled' : ''}>Reservar</button>
-                <button class="btn btn-danger" onclick="deleteItem(${item.id})">🗑️ Eliminar</button>
+                ${['admin', 'user'].includes(currentUser.rol) ? 
+                    `<button class="btn btn-secondary" onclick="startLoan(${item.id})" ${item.cantidad_disponible <= 0 ? 'disabled' : ''}>Reservar</button>` : 
+                    ''}
+                ${deleteBtn}
             </div>
         `;
         itemsContainer.appendChild(card);
 
         const row = document.createElement('tr');
+        
+        const deleteAction = currentUser.rol === 'admin' ? 
+            `<button class="btn btn-danger" onclick="deleteItem(${item.id})">Eliminar</button>` : '';
+        
+        const reserveAction = ['admin', 'user'].includes(currentUser.rol) ? 
+            `<button class="btn btn-secondary" onclick="startLoan(${item.id})" ${item.cantidad_disponible <= 0 ? 'disabled' : ''}>Reservar</button>` : 
+            '';
+        
         row.innerHTML = `
             <td>${item.nombre}</td>
             <td>${formatCategory(item.categoria)}</td>
@@ -149,8 +318,8 @@ function render() {
             <td>${item.reservado || 0}</td>
             <td>${item.cantidad_disponible > 0 ? 'Disponible' : 'Agotado'}</td>
             <td>
-                <button class="btn btn-secondary" onclick="startLoan(${item.id})" ${item.cantidad_disponible <= 0 ? 'disabled' : ''}>Reservar</button>
-                <button class="btn btn-danger" onclick="deleteItem(${item.id})">Eliminar</button>
+                ${reserveAction}
+                ${deleteAction}
             </td>
         `;
         productsTableBody.appendChild(row);
@@ -158,6 +327,9 @@ function render() {
 
     reservations.forEach(res => {
         const row = document.createElement('tr');
+        const returnBtn = ['admin', 'user'].includes(currentUser.rol) && res.estado === 'activa' ? 
+            `<button class="btn btn-success" onclick="returnReservation(${res.id})">Marcar devuelta</button>` : '';
+        
         row.innerHTML = `
             <td>${res.id}</td>
             <td>${res.producto_nombre}</td>
@@ -165,11 +337,102 @@ function render() {
             <td>${res.cantidad}</td>
             <td>${res.fecha}</td>
             <td>${res.estado}</td>
-            <td>${res.estado === 'activa' ? `<button class="btn btn-success" onclick="returnReservation(${res.id})">Marcar devuelta</button>` : ''}</td>
+            <td>${returnBtn}</td>
         `;
         reservationsTableBody.appendChild(row);
     });
 }
+
+// ==================== GESTIÓN DE USUARIOS ====================
+
+async function createNewUser() {
+    const username = document.getElementById('adminUsername').value.trim();
+    const email = document.getElementById('adminEmail').value.trim();
+    const password = document.getElementById('adminPassword').value;
+    const rol = document.getElementById('adminRole').value;
+
+    if (!username || !password) {
+        alert('Usuario y contraseña son requeridos');
+        return;
+    }
+
+    try {
+        const res = await apiCall('/api/users', 'POST', {
+            username, email, password, rol
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            alert(err.error || 'Error al crear usuario');
+            return;
+        }
+
+        alert('Usuario creado exitosamente');
+        document.getElementById('adminUsername').value = '';
+        document.getElementById('adminEmail').value = '';
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('adminRole').value = 'readonly';
+        
+        await fetchUsers();
+    } catch (error) {
+        console.error(error);
+        alert('Error al crear usuario');
+    }
+}
+
+function renderUsersList() {
+    const usersTableBody = document.querySelector('#usersTable tbody');
+    usersTableBody.innerHTML = '';
+
+    users.forEach(user => {
+        const row = document.createElement('tr');
+        const deleteBtn = user.id !== currentUser.id ? 
+            `<button class="btn btn-danger" onclick="prepareDeleteUser(${user.id})">Desactivar</button>` : 
+            '(Tu cuenta)';
+        
+        row.innerHTML = `
+            <td>${user.username}</td>
+            <td>${user.email || '—'}</td>
+            <td>${user.rol}</td>
+            <td>${user.activo ? 'Activo' : 'Desactivado'}</td>
+            <td>${deleteBtn}</td>
+        `;
+        usersTableBody.appendChild(row);
+    });
+}
+
+function prepareDeleteUser(userId) {
+    selectedUserId = userId;
+    document.getElementById('deleteUserModal').classList.add('active');
+}
+
+function closeDeleteUserModal() {
+    document.getElementById('deleteUserModal').classList.remove('active');
+    selectedUserId = null;
+}
+
+async function confirmDeleteUser() {
+    if (!selectedUserId) return;
+
+    try {
+        const res = await apiCall(`/api/users/${selectedUserId}`, 'DELETE');
+
+        if (!res.ok) {
+            const err = await res.json();
+            alert(err.error || 'Error al desactivar usuario');
+            return;
+        }
+
+        alert('Usuario desactivado exitosamente');
+        closeDeleteUserModal();
+        await fetchUsers();
+    } catch (error) {
+        console.error(error);
+        alert('Error al desactivar usuario');
+    }
+}
+
+// ==================== GESTIÓN DE PRODUCTOS ====================
 
 async function addItem() {
     const nombre = document.getElementById('inputNombre').value.trim();
@@ -181,34 +444,46 @@ async function addItem() {
         return alert('Necesitas nombre y cantidad válida');
     }
 
-    const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, serie, categoria, cantidad })
-    });
+    try {
+        const res = await apiCall('/api/products', 'POST', {
+            nombre, serie, categoria, cantidad
+        });
 
-    if (!res.ok) {
-        const err = await res.json();
-        return alert(err.error || 'No se pudo crear el producto');
+        if (!res.ok) {
+            const err = await res.json();
+            return alert(err.error || 'No se pudo crear el producto');
+        }
+
+        document.getElementById('inputNombre').value = '';
+        document.getElementById('inputCantidad').value = '1';
+        document.getElementById('inputSerie').value = '';
+        toggleForm();
+        await refreshData();
+    } catch (error) {
+        console.error(error);
+        alert('Error al crear producto');
     }
-
-    document.getElementById('inputNombre').value = '';
-    document.getElementById('inputCantidad').value = '1';
-    document.getElementById('inputSerie').value = '';
-    toggleForm();
-    await refreshData();
 }
 
 async function deleteItem(id) {
-    if (!confirm('¿Seguro eliminar?')) return;
-    await fetch(`/api/products/${id}`, { method: 'DELETE' });
-    await refreshData();
+    if (!confirm('¿Seguro eliminar este producto?')) return;
+    
+    try {
+        const res = await apiCall(`/api/products/${id}`, 'DELETE');
+        if (!res.ok) throw new Error('Error al eliminar');
+        
+        await refreshData();
+    } catch (error) {
+        console.error(error);
+        alert('Error al eliminar producto');
+    }
 }
+
+// ==================== GESTIÓN DE RESERVACIONES ====================
 
 function startLoan(productId) {
     loanProductId = productId;
     document.getElementById('loanName').value = '';
-    document.getElementById('loanCantidad').value = '1';
     setLoanDateToToday();
     document.getElementById('loanModal').classList.add('active');
     document.getElementById('loanName').focus();
@@ -221,47 +496,103 @@ function closeLoanModal() {
 
 async function confirmLoan() {
     const usuario = document.getElementById('loanName').value.trim();
-    const cantidad = parseInt(document.getElementById('loanCantidad').value, 10);
     const fecha = document.getElementById('loanDate').value;
 
-    if (!usuario || !cantidad || cantidad <= 0 || !loanProductId) {
-        return alert('Complete usuario, cantidad y fecha.');
+    if (!usuario || !loanProductId) {
+        return alert('Complete usuario y fecha.');
     }
 
-    const res = await fetch(`/api/products/${loanProductId}/reserve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuario, cantidad, fecha })
-    });
+    const product = products.find(p => p.id === loanProductId);
+    const cantidad = 1; // Por defecto 1
 
-    if (!res.ok) {
-        const err = await res.json();
-        return alert(err.error || 'Error al reservar');
+    try {
+        const res = await apiCall(`/api/products/${loanProductId}/reserve`, 'POST', {
+            usuario, cantidad, fecha
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            return alert(err.error || 'Error al reservar');
+        }
+
+        closeLoanModal();
+        await refreshData();
+    } catch (error) {
+        console.error(error);
+        alert('Error al reservar producto');
     }
-
-    closeLoanModal();
-    await refreshData();
 }
 
 async function returnReservation(reservationId) {
-    await fetch(`/api/reservations/${reservationId}/return`, { method: 'POST' });
-    await refreshData();
+    try {
+        const res = await apiCall(`/api/reservations/${reservationId}/return`, 'POST');
+        if (!res.ok) throw new Error('Error al devolver');
+        
+        await refreshData();
+    } catch (error) {
+        console.error(error);
+        alert('Error al devolver reserva');
+    }
 }
+
+// ==================== INICIALIZACIÓN ====================
 
 async function refreshData() {
     await Promise.all([fetchProducts(), fetchReservations()]);
     render();
 }
 
+async function initApp() {
+    // Verificar si hay token guardado
+    const savedToken = localStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('currentUser');
+
+    if (savedToken && savedUser) {
+        authToken = savedToken;
+        currentUser = JSON.parse(savedUser);
+        
+        // Verificar que el token sigue siendo válido
+        try {
+            const res = await apiCall('/api/auth/verify');
+            if (res.ok) {
+                showMainApp();
+                await refreshData();
+                return;
+            }
+        } catch (error) {
+            console.log('Token inválido');
+        }
+    }
+
+    // Mostrar pantalla de login
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('mainApp').classList.add('hidden');
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('searchInput').addEventListener('input', e => {
-        currentSearch = e.target.value.toLowerCase();
-        render();
-    });
+    // Inicializar app
+    initApp();
 
-    document.getElementById('loanModal').addEventListener('click', e => {
-        if (e.target === e.currentTarget) closeLoanModal();
-    });
+    // Event listeners
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', e => {
+            currentSearch = e.target.value.toLowerCase();
+            render();
+        });
+    }
 
-    refreshData();
+    const loanModal = document.getElementById('loanModal');
+    if (loanModal) {
+        loanModal.addEventListener('click', e => {
+            if (e.target === e.currentTarget) closeLoanModal();
+        });
+    }
+
+    const deleteUserModal = document.getElementById('deleteUserModal');
+    if (deleteUserModal) {
+        deleteUserModal.addEventListener('click', e => {
+            if (e.target === e.currentTarget) closeDeleteUserModal();
+        });
+    }
 });
