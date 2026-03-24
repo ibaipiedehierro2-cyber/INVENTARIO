@@ -110,6 +110,8 @@ async function initDb() {
   try {
     await pool.query(createUsersTable);
     await pool.query(createProductsTable);
+    // Asegurar columna características si ya existe tabla creada de antes
+    await pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS caracteristicas TEXT");
     await pool.query(createReservationsTable);
     
     // Crear usuario admin por defecto si no existe
@@ -348,7 +350,7 @@ app.post('/api/products', verifyToken, requireRole(['admin', 'user']), async (re
     res.status(201).json(newProductRows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al crear el producto' });
+    res.status(500).json({ error: error.message || 'Error al crear el producto' });
   }
 });
 
