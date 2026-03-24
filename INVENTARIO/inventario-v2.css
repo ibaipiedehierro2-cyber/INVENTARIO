@@ -282,14 +282,14 @@ textarea.form-input {
 }
 
 .item-header {
+    position: relative;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     margin-bottom: 12px;
 }
 
 .item-title {
-    width: 100%;
     text-align: center;
     font-size: 1.15rem;
     font-weight: 700;
@@ -297,7 +297,10 @@ textarea.form-input {
 }
 
 .item-header .item-badge {
-    margin-left: auto;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 
