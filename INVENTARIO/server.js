@@ -85,6 +85,7 @@ async function initDb() {
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
     serie VARCHAR(255),
+    caracteristicas TEXT,
     categoria VARCHAR(100) NOT NULL,
     cantidad_total INT NOT NULL DEFAULT 0,
     cantidad_disponible INT NOT NULL DEFAULT 0,
@@ -333,14 +334,14 @@ app.get('/api/products', verifyToken, async (req, res) => {
 // Crear producto (admin y user)
 app.post('/api/products', verifyToken, requireRole(['admin', 'user']), async (req, res) => {
   try {
-    const { nombre, serie, categoria, cantidad } = req.body;
+    const { nombre, serie, caracteristicas, categoria, cantidad } = req.body;
     if (!nombre || !categoria || !cantidad || cantidad <= 0) {
       return res.status(400).json({ error: 'Datos inválidos' });
     }
 
     const [result] = await pool.query(
-      'INSERT INTO products (nombre, serie, categoria, cantidad_total, cantidad_disponible) VALUES (?, ?, ?, ?, ?)',
-      [nombre, serie || '', categoria, cantidad, cantidad]
+      'INSERT INTO products (nombre, serie, caracteristicas, categoria, cantidad_total, cantidad_disponible) VALUES (?, ?, ?, ?, ?, ?)',
+      [nombre, serie || '', caracteristicas || '', categoria, cantidad, cantidad]
     );
 
     const [newProductRows] = await pool.query('SELECT * FROM products WHERE id = ?', [result.insertId]);

@@ -290,6 +290,7 @@ function render() {
                 <div class="info-row"><span class="info-label">Reserv.:</span><span>${item.reservado || 0}</span></div>
                 <div class="info-row"><span class="info-label">Categoría:</span><span>${formatCategory(item.categoria)}</span></div>
                 <div class="info-row"><span class="info-label">Serie:</span><span>${item.serie || '—'}</span></div>
+                ${item.caracteristicas ? `<div class="info-row"><span class="info-label">Características:</span><span class="characteristics-text">${item.caracteristicas}</span></div>` : ''}
             </div>
             <div class="item-actions">
                 ${['admin', 'user'].includes(currentUser.rol) ? 
@@ -438,6 +439,7 @@ async function addItem() {
     const nombre = document.getElementById('inputNombre').value.trim();
     const cantidad = parseInt(document.getElementById('inputCantidad').value, 10);
     const serie = document.getElementById('inputSerie').value.trim();
+    const caracteristicas = document.getElementById('inputCaracteristicas').value.trim();
     const categoria = document.getElementById('inputCategoria').value;
 
     if (!nombre || !cantidad || cantidad <= 0) {
@@ -446,7 +448,7 @@ async function addItem() {
 
     try {
         const res = await apiCall('/api/products', 'POST', {
-            nombre, serie, categoria, cantidad
+            nombre, serie, caracteristicas, categoria, cantidad
         });
 
         if (!res.ok) {
@@ -457,6 +459,7 @@ async function addItem() {
         document.getElementById('inputNombre').value = '';
         document.getElementById('inputCantidad').value = '1';
         document.getElementById('inputSerie').value = '';
+        document.getElementById('inputCaracteristicas').value = '';
         toggleForm();
         await refreshData();
     } catch (error) {
