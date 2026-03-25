@@ -605,6 +605,7 @@ textarea.form-input {
     border: 1px solid var(--border);
     border-radius: 10px;
     overflow: hidden;
+    table-layout: fixed;
 }
 
 .users-table th {
@@ -614,14 +615,35 @@ textarea.form-input {
     text-align: left;
     font-weight: 700;
     border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
+.users-table th:nth-child(1) { width: 20%; }
+.users-table th:nth-child(2) { width: 25%; }
+.users-table th:nth-child(3) { width: 18%; }
+.users-table th:nth-child(4) { width: 12%; }
+.users-table th:nth-child(5) { width: 25%; }
 
 .users-table td {
     padding: 12px 14px;
     border-bottom: 1px solid #e8edf2;
     font-size: 0.92rem;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
+.users-table td .form-select {
+    max-width: 240px;
+    width: 100%;
+}
+
+.users-table td button {
+    min-width: 88px;
+}
 .users-table tr:hover {
     background: #f9fdfb;
 }
