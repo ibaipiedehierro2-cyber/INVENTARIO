@@ -633,9 +633,9 @@ textarea.form-input {
     white-space: nowrap;
 }
 .users-table td {
-    padding: 12px 14px;
+    padding: 8px 10px;
     border-bottom: 1px solid #e8edf2;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     vertical-align: middle;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -643,18 +643,26 @@ textarea.form-input {
 }
 
 .users-table td .form-select {
-    max-width: 240px;
+    max-width: 220px;
     width: 100%;
-    min-height: 30px;
+    min-height: 28px;
 }
 
 .users-table td button {
-    min-width: 100px;
+    min-width: 90px;
     white-space: nowrap;
+    padding: 6px 10px;
 }
 
 .users-table td .btn:not(:first-child) {
-    margin-left: 6px;
+    margin-left: 8px;
+}
+
+.users-table td:last-child {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-start;
 }
 .users-table tr:hover {
     background: #f9fdfb;
