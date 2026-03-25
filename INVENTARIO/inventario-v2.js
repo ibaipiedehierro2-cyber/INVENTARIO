@@ -223,6 +223,13 @@ function setFiltro(tipo, filtro, targetBtn) {
     render();
 }
 
+function setFiltroDropdown(tipo, filtro) {
+    if (tipo === 'categoria') {
+        currentCategoryFilter = filtro;
+    }
+    render();
+}
+
 function getFilteredProducts() {
     return products
         .filter(item => (currentCategoryFilter === 'todas' || item.categoria === currentCategoryFilter))
