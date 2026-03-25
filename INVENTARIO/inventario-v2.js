@@ -333,7 +333,7 @@ function render() {
         card.innerHTML = `
             <div class="item-header">
                 <div class="item-title">${item.nombre}</div>
-                <span class="item-badge">${item.reservado > 0 ? '🔴' : '🟢'}</span>
+                <span class="item-badge">${item.cantidad_disponible === item.cantidad_total ? '🟢' : item.cantidad_disponible === 0 ? '🔴' : '🟠'}</span>
             </div>
             <div class="item-info">
                 <div class="info-row"><span class="info-label">Total:</span><span class="quantity-badge">${item.cantidad_total}</span></div>
