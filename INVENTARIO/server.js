@@ -281,6 +281,11 @@ app.patch('/api/users/:id', verifyToken, async (req, res) => {
       params.push(rol);
     }
 
+    if (req.user.rol === 'admin' && req.body.activo !== undefined) {
+      updates.push('activo = ?');
+      params.push(req.body.activo ? 1 : 0);
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'Nada que actualizar' });
     }
@@ -315,6 +320,23 @@ app.delete('/api/users/:id', verifyToken, requireRole(['admin']), async (req, re
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al desactivar usuario' });
+  }
+});
+
+// Eliminación permanente de usuario (solo admin)
+app.delete('/api/users/:id/permanent', verifyToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (req.user.id == id) {
+      return res.status(400).json({ error: 'No puedes eliminar tu propia cuenta' });
+    }
+
+    await pool.query('DELETE FROM users WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al eliminar usuario' });
   }
 });
 

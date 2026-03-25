@@ -438,19 +438,82 @@ function renderUsersList() {
 
     users.forEach(user => {
         const row = document.createElement('tr');
-        const deleteBtn = user.id !== currentUser.id ? 
-            `<button class="btn btn-danger" onclick="prepareDeleteUser(${user.id})">Desactivar</button>` : 
-            '(Tu cuenta)';
-        
+
+        const roleControl = user.id !== currentUser.id ?
+            `<select class="form-select" onchange="changeUserRole(${user.id}, this.value)">
+                <option value="admin" ${user.rol === 'admin' ? 'selected' : ''}>admin</option>
+                <option value="user" ${user.rol === 'user' ? 'selected' : ''}>user</option>
+                <option value="readonly" ${user.rol === 'readonly' ? 'selected' : ''}>readonly</option>
+            </select>` :
+            `<span>${user.rol}</span>`;
+
+        let statusBtn = '';
+        if (user.id !== currentUser.id) {
+            if (user.activo) {
+                statusBtn = `<button class="btn btn-warning" onclick="toggleUserActive(${user.id}, false)">Desactivar</button>`;
+            } else {
+                statusBtn = `<button class="btn btn-success" onclick="toggleUserActive(${user.id}, true)">Activar</button>`;
+            }
+        }
+
+        const deleteBtn = user.id !== currentUser.id ?
+            `<button class="btn btn-danger" onclick="deleteUserPermanent(${user.id})">Eliminar</button>` :
+            '';
+
         row.innerHTML = `
             <td>${user.username}</td>
             <td>${user.email || '—'}</td>
-            <td>${user.rol}</td>
+            <td>${roleControl}</td>
             <td>${user.activo ? 'Activo' : 'Desactivado'}</td>
-            <td>${deleteBtn}</td>
+            <td style="display: flex; gap: 6px; flex-wrap: wrap;">${statusBtn}${deleteBtn}</td>
         `;
+
         usersTableBody.appendChild(row);
     });
+}
+
+async function changeUserRole(userId, newRole) {
+    try {
+        const res = await apiCall(`/api/users/${userId}`, 'PATCH', { rol: newRole });
+        if (!res.ok) {
+            const err = await res.json();
+            return alert(err.error || 'Error al cambiar rol');
+        }
+        await fetchUsers();
+    } catch (error) {
+        console.error(error);
+        alert('Error al cambiar rol');
+    }
+}
+
+async function toggleUserActive(userId, active) {
+    try {
+        const res = await apiCall(`/api/users/${userId}`, 'PATCH', { activo: active });
+        if (!res.ok) {
+            const err = await res.json();
+            return alert(err.error || 'Error al actualizar estado');
+        }
+        await fetchUsers();
+    } catch (error) {
+        console.error(error);
+        alert('Error al actualizar estado');
+    }
+}
+
+async function deleteUserPermanent(userId) {
+    if (!confirm('¿Eliminar permanentemente este usuario? Esta acción es irreversible.')) return;
+
+    try {
+        const res = await apiCall(`/api/users/${userId}/permanent`, 'DELETE');
+        if (!res.ok) {
+            const err = await res.json();
+            return alert(err.error || 'Error al eliminar usuario');
+        }
+        await fetchUsers();
+    } catch (error) {
+        console.error(error);
+        alert('Error al eliminar usuario');
+    }
 }
 
 function prepareDeleteUser(userId) {
