@@ -238,7 +238,14 @@ function toggleForm() {
 
 function toggleAdminPanel() {
     const adminPanel = document.getElementById('adminPanel');
+    const isHidden = adminPanel.classList.contains('hidden');
+
     adminPanel.classList.toggle('hidden');
+
+    if (isHidden) {
+        // se abre el panel admin
+        fetchUsers();
+    }
 }
 
 function setLoanDateToToday() {

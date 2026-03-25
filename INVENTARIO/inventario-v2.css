@@ -633,34 +633,61 @@ textarea.form-input {
     white-space: nowrap;
 }
 .users-table td {
-    padding: 8px 10px;
+    padding: 6px 10px;
     border-bottom: 1px solid #e8edf2;
     font-size: 0.9rem;
     vertical-align: middle;
+    height: 48px;
+    min-height: 48px;
+    line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.users-table tr {
+    height: 46px;
+    min-height: 46px;
+}
+
+.users-table th,
+.users-table td {
+    vertical-align: middle;
+    padding: 6px 10px;
+    height: 46px;
+    min-height: 46px;
+    line-height: 1.1;
+    box-sizing: border-box;
+}
+
 .users-table td .form-select {
     max-width: 220px;
     width: 100%;
+    padding: 6px 10px;
     min-height: 28px;
+    box-sizing: border-box;
 }
 
 .users-table td button {
-    min-width: 90px;
+    min-width: 80px;
     white-space: nowrap;
     padding: 6px 10px;
+    height: 30px;
+    line-height: 1.2;
 }
 
-.users-table td .btn:not(:first-child) {
-    margin-left: 8px;
+.users-table td:first-child,
+.users-table td:nth-child(2),
+.users-table td:nth-child(3),
+.users-table td:nth-child(4),
+.users-table td:nth-child(5) {
+    height: 46px;
+    min-height: 46px;
 }
 
 .users-table td:last-child {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     justify-content: flex-start;
 }
