@@ -333,8 +333,8 @@ function render() {
         const card = document.createElement('div');
         card.className = 'item-card';
         
-        // Solo mostrar botón eliminar si es admin
-        const deleteBtn = currentUser.rol === 'admin' ? 
+        // Solo mostrar botón eliminar si es admin o user
+        const deleteBtn = (currentUser.rol === 'admin' || currentUser.rol === 'user') ? 
             `<button class="btn btn-danger" onclick="deleteItem(${item.id})">🗑️ Eliminar</button>` : '';
         
         card.innerHTML = `
@@ -349,6 +349,7 @@ function render() {
                 <div class="info-row"><span class="info-label">Categoría:</span><span>${formatCategory(item.categoria)}</span></div>
                 <div class="info-row"><span class="info-label">Serie:</span><span>${item.serie || '—'}</span></div>
                 ${item.caracteristicas ? `<div class="info-row"><span class="info-label">Características:</span><span class="characteristics-text">${item.caracteristicas}</span></div>` : ''}
+                ${item.image_path ? `<div class="info-row"><img src="${item.image_path}" alt="Imagen del producto" class="product-image" /></div>` : ''}
             </div>
             <div class="item-actions">
                 ${['admin', 'user'].includes(currentUser.rol) ? 
@@ -361,7 +362,7 @@ function render() {
 
         const row = document.createElement('tr');
         
-        const deleteAction = currentUser.rol === 'admin' ? 
+        const deleteAction = (currentUser.rol === 'admin' || currentUser.rol === 'user') ? 
             `<button class="btn btn-danger" onclick="deleteItem(${item.id})">Eliminar</button>` : '';
         
         const reserveAction = ['admin', 'user'].includes(currentUser.rol) ? 
@@ -562,14 +563,29 @@ async function addItem() {
     const serie = document.getElementById('inputSerie').value.trim();
     const caracteristicas = document.getElementById('inputCaracteristicas').value.trim();
     const categoria = document.getElementById('inputCategoria').value;
+    const image = document.getElementById('inputImage').files[0];
 
     if (!nombre || !cantidad || cantidad <= 0) {
         return alert('Necesitas nombre y cantidad válida');
     }
 
     try {
-        const res = await apiCall('/api/products', 'POST', {
-            nombre, serie, caracteristicas, categoria, cantidad
+        const formData = new FormData();
+        formData.append('nombre', nombre);
+        formData.append('cantidad', cantidad);
+        formData.append('serie', serie);
+        formData.append('caracteristicas', caracteristicas);
+        formData.append('categoria', categoria);
+        if (image) {
+            formData.append('image', image);
+        }
+
+        const res = await fetch('/api/products', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: formData
         });
 
         if (!res.ok) {
@@ -581,11 +597,39 @@ async function addItem() {
         document.getElementById('inputCantidad').value = '1';
         document.getElementById('inputSerie').value = '';
         document.getElementById('inputCaracteristicas').value = '';
+        document.getElementById('inputImage').value = '';
         toggleForm();
         await refreshData();
     } catch (error) {
         console.error(error);
         alert('Error al crear producto');
+    }
+}
+
+async function generateMobileUploadQR() {
+    try {
+        const res = await apiCall('/api/mobile-upload-token', 'POST');
+        if (!res.ok) {
+            const err = await res.json();
+            return alert(err.error || 'No se pudo generar token móvil');
+        }
+        const data = await res.json();
+        const hostInput = document.getElementById('mobileUploadHost').value.trim();
+        const host = hostInput || window.location.hostname;
+        const protocol = window.location.protocol;
+        const port = window.location.port ? `:${window.location.port}` : '';
+        const baseUrl = `${protocol}//${host}${port}`;
+        const url = `${baseUrl}/mobile-upload.html?token=${encodeURIComponent(data.token)}`;
+        const qrCode = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(url)}`;
+        const preview = document.getElementById('qrPreview');
+        preview.innerHTML = `<p style="margin-bottom:5px;">Escanea este QR con el móvil (o abre URL desde el navegador móvil):</p><img src="${qrCode}" alt="QR Mobile Upload" style="max-width:100%; border: 1px solid #ddd; border-radius: 8px;" />`;
+        preview.innerHTML += `<p><small>URL: <a href="${url}" target="_blank">${url}</a></small></p>`;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            preview.innerHTML += `<p style="color:#c66;"><strong>Important:</strong> usa la IP de tu PC en la red local (ej: 192.168.1.50) en el campo arriba para que tu móvil pueda conectarse.</p>`;
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Error al generar QR para móvil');
     }
 }
 

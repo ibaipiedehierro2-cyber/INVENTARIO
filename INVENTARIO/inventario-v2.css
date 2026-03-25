@@ -348,6 +348,15 @@ textarea.form-input {
 .quantity-badge { background: var(--secondary); color: white; border-radius: 8px; padding: 4px 10px; font-size: 0.78rem; font-weight: 600; flex-shrink: 0; }
 .characteristics-text { font-size: 0.85rem; color: #555; line-height: 1.4; word-break: break-word; }
 
+.product-image {
+    max-width: 100%;
+    height: auto;
+    max-height: 150px;
+    border-radius: 8px;
+    margin-top: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .loan-info { background: #fff1f8; border-left: 4px solid #d60056; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
 .loan-info-text { font-size: 0.86rem; color: #3f3f3f; }
 

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Subida Móvil Inventario</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 16px; background: #f7faff; color: #223; }
+        .container { max-width: 480px; margin: auto; background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 5px 16px rgba(0,0,0,.12); }
+        h1 { font-size: 1.3rem; margin-bottom: 14px; }
+        .form-group { margin-bottom: 10px; }
+        label { font-size: .9rem; margin-bottom: 4px; display: block; color: #005f7a; }
+        input, textarea, select, button { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #c5dbe7; border-radius: 8px; }
+        button { background-color: #0084ae; color: white; border: none; cursor: pointer; }
+        button:disabled { opacity: .65; cursor: not-allowed; }
+        #status { margin-top: 12px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Subida de producto desde Móvil</h1>
+        <p>Selecciona archivo o toma una foto con la cámara, luego pulsa subir.</p>
+
+        <form id="mobileUploadForm">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="mobileNombre" required />
+            </div>
+            <div class="form-group">
+                <label>Categoría</label>
+                <select id="mobileCategoria" required>
+                    <option value="accesorios">📦 Accesorios</option>
+                    <option value="adaptadores">🔌 Adaptadores</option>
+                    <option value="almacenamiento">💾 Almacenamiento</option>
+                    <option value="componentes">🔧 Componentes</option>
+                    <option value="monitores">🖥️ Monitores</option>
+                    <option value="pasta-termica">🧴 Pasta Térmica</option>
+                    <option value="varios">📦 Varios</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Cantidad</label>
+                <input type="number" id="mobileCantidad" value="1" min="1" required />
+            </div>
+            <div class="form-group">
+                <label>Serie</label>
+                <input type="text" id="mobileSerie" />
+            </div>
+            <div class="form-group">
+                <label>Características</label>
+                <textarea id="mobileCaracteristicas" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Imagen</label>
+                <input type="file" id="mobileImage" accept="image/*" />
+            </div>
+            <div class="form-group">
+                <button type="button" id="openCameraBtn">🔴 Activar cámara</button>
+            </div>
+            <div class="form-group" id="cameraContainer" style="display:none;">
+                <video id="cameraVideo" style="width:100%; border-radius: 8px;" autoplay playsinline></video>
+                <button type="button" id="captureBtn" style="margin-top:8px;">📸 Tomar foto</button>
+            </div>
+            <canvas id="snapshotCanvas" style="display:none;"></canvas>
+            <button type="submit" id="uploadBtn">Subir producto</button>
+        </form>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const status = document.getElementById('status');
+        let stream = null;
+
+        const video = document.getElementById('cameraVideo');
+        const cameraContainer = document.getElementById('cameraContainer');
+        const openCameraBtn = document.getElementById('openCameraBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const snapshotCanvas = document.getElementById('snapshotCanvas');
+
+        openCameraBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                video.srcObject = stream;
+                cameraContainer.style.display = 'block';
+                status.textContent = 'Cámara activa. Pulsa Tomar foto.';
+            } catch (err) {
+                console.error(err);
+                status.textContent = 'No se pudo activar la cámara. Revisa permisos.';
+            }
+        });
+
+        captureBtn.addEventListener('click', () => {
+            if (!stream) return;
+            const context = snapshotCanvas.getContext('2d');
+            snapshotCanvas.width = video.videoWidth;
+            snapshotCanvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            snapshotCanvas.toBlob(blob => {
+                const fileInput = document.getElementById('mobileImage');
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(new File([blob], `cam_${Date.now()}.jpg`, { type: 'image/jpeg' }));
+                fileInput.files = dataTransfer.files;
+                status.textContent = 'Foto tomada y lista para subir.';
+            }, 'image/jpeg', 0.9);
+        });
+
+        document.getElementById('mobileUploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            status.textContent = 'Subiendo...';
+            const nombre = document.getElementById('mobileNombre').value.trim();
+            const categoria = document.getElementById('mobileCategoria').value;
+            const cantidad = document.getElementById('mobileCantidad').value;
+            const serie = document.getElementById('mobileSerie').value.trim();
+            const caracteristicas = document.getElementById('mobileCaracteristicas').value.trim();
+            const file = document.getElementById('mobileImage').files[0];
+
+            if (!nombre || !categoria || !cantidad || cantidad <= 0 || !file) {
+                status.textContent = 'Rellena todos los campos requeridos.';
+                return;
+            }
+
+            const fd = new FormData();
+            if (token) fd.append('token', token);
+            fd.append('nombre', nombre);
+            fd.append('categoria', categoria);
+            fd.append('cantidad', cantidad);
+            fd.append('serie', serie);
+            fd.append('caracteristicas', caracteristicas);
+            fd.append('image', file);
+
+            try {
+                const res = await fetch('/api/mobile-upload', { method: 'POST', body: fd });
+                if (!res.ok) {
+                    const data = await res.json();
+                    status.textContent = 'Error: ' + (data.error || 'No se pudo subir');
+                    return;
+                }
+                const data = await res.json();
+                status.textContent = 'Producto subido con éxito: ' + data.nombre;
+                document.getElementById('mobileUploadForm').reset();
+            } catch (error) {
+                status.textContent = 'Error en la conexión';
+            }
+        });
+    </script>
+</body>
+</html>

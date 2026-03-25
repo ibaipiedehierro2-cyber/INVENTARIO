@@ -5,9 +5,33 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcryptjs = require('bcryptjs');
+const https = require('https');
+const fs = require('fs');
+const crypto = require('crypto');
+const multer = require('multer');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Token temporal para uploads móvil (start via QR)
+const mobileUploadTokens = new Map();
+
+// Servir contenido estático y permitr web móvil
+app.use(express.static(path.join(__dirname)));
+
+// Configuración de multer para subir imágenes
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'images/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
+
+// Servir archivos estáticos de imágenes
+app.use('/images', express.static('images'));
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_secreta_segura_2024';
 
 app.use(cors());
@@ -118,6 +142,15 @@ async function initDb() {
     );
     if (colRows.length === 0) {
       await pool.query("ALTER TABLE products ADD COLUMN caracteristicas TEXT");
+    }
+
+    // Asegurar columna image_path
+    const [imgColRows] = await pool.query(
+      "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'products' AND COLUMN_NAME = 'image_path'",
+      [dbConfig.database]
+    );
+    if (imgColRows.length === 0) {
+      await pool.query("ALTER TABLE products ADD COLUMN image_path VARCHAR(255)");
     }
 
     await pool.query(createReservationsTable);
@@ -364,16 +397,18 @@ app.get('/api/products', verifyToken, async (req, res) => {
 });
 
 // Crear producto (admin y user)
-app.post('/api/products', verifyToken, requireRole(['admin', 'user']), async (req, res) => {
+app.post('/api/products', verifyToken, requireRole(['admin', 'user']), upload.single('image'), async (req, res) => {
   try {
     const { nombre, serie, caracteristicas, categoria, cantidad } = req.body;
     if (!nombre || !categoria || !cantidad || cantidad <= 0) {
       return res.status(400).json({ error: 'Datos inválidos' });
     }
 
+    const imagePath = req.file ? `/images/${req.file.filename}` : null;
+
     const [result] = await pool.query(
-      'INSERT INTO products (nombre, serie, caracteristicas, categoria, cantidad_total, cantidad_disponible) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombre, serie || '', caracteristicas || '', categoria, cantidad, cantidad]
+      'INSERT INTO products (nombre, serie, caracteristicas, categoria, cantidad_total, cantidad_disponible, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nombre, serie || '', caracteristicas || '', categoria, cantidad, cantidad, imagePath]
     );
 
     const [newProductRows] = await pool.query('SELECT * FROM products WHERE id = ?', [result.insertId]);
@@ -384,8 +419,54 @@ app.post('/api/products', verifyToken, requireRole(['admin', 'user']), async (re
   }
 });
 
-// Eliminar producto (solo admin)
-app.delete('/api/products/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+// Crear token temporal para subida desde móvil vía QR (admin/user)
+app.post('/api/mobile-upload-token', verifyToken, requireRole(['admin', 'user']), (req, res) => {
+  const token = crypto.randomUUID ? crypto.randomUUID() : require('crypto').randomBytes(16).toString('hex');
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutos
+  mobileUploadTokens.set(token, expiresAt);
+  res.json({ token });
+});
+
+// Subida desde móvil con token temporal (no requiere JWT)
+app.post('/api/mobile-upload', upload.single('image'), async (req, res) => {
+  try {
+    const { token, nombre, serie, caracteristicas, categoria, cantidad } = req.body;
+
+    if (token) {
+      if (!mobileUploadTokens.has(token)) {
+        return res.status(403).json({ error: 'Token móvil inválido o expirado' });
+      }
+
+      const expiresAt = mobileUploadTokens.get(token);
+      if (!expiresAt || Date.now() > expiresAt) {
+        mobileUploadTokens.delete(token);
+        return res.status(403).json({ error: 'Token móvil expirado' });
+      }
+
+      mobileUploadTokens.delete(token);
+    }
+
+    if (!nombre || !categoria || !cantidad || cantidad <= 0) {
+      return res.status(400).json({ error: 'Datos inválidos' });
+    }
+
+    const imagePath = req.file ? `/images/${req.file.filename}` : null;
+
+    const [result] = await pool.query(
+      'INSERT INTO products (nombre, serie, caracteristicas, categoria, cantidad_total, cantidad_disponible, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nombre, serie || '', caracteristicas || '', categoria, cantidad, cantidad, imagePath]
+    );
+
+    const [newProductRows] = await pool.query('SELECT * FROM products WHERE id = ?', [result.insertId]);
+    res.json(newProductRows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || 'Error al subir producto desde móvil' });
+  }
+});
+
+// Eliminar producto (admin y user)
+app.delete('/api/products/:id', verifyToken, requireRole(['admin', 'user']), async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM products WHERE id = ?', [id]);
@@ -513,8 +594,12 @@ app.use((req, res, next) => {
 // ==================== INICIAR SERVIDOR ====================
 
 initDb().then(() => {
-  app.listen(port, () => {
-    console.log(`Servidor ejecutando en http://localhost:${port}`);
+  const options = {
+    key: fs.readFileSync('key.pem'),
+    cert: fs.readFileSync('cert.pem')
+  };
+  https.createServer(options, app).listen(port, () => {
+    console.log(`Servidor ejecutando en https://localhost:${port}`);
     console.log('Credenciales por defecto: admin / admin123');
   });
 }).catch(err => {
