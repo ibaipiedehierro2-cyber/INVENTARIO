@@ -422,6 +422,17 @@
                         />
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Cantidad a reservar</label>
+                        <input
+                            type="number"
+                            class="form-input"
+                            id="loanQuantity"
+                            min="1"
+                            value="1"
+                        />
+                        <small style="color: var(--text-muted); margin-top: 4px; display: block;" id="maxQuantityText"></small>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Fecha del préstamo</label>
                         <input
                             type="date"

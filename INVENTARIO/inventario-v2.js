@@ -537,7 +537,11 @@ async function deleteItem(id) {
 
 function startLoan(productId) {
     loanProductId = productId;
+    const product = products.find(p => p.id === productId);
     document.getElementById('loanName').value = '';
+    document.getElementById('loanQuantity').value = 1;
+    document.getElementById('loanQuantity').max = product.cantidad_disponible;
+    document.getElementById('maxQuantityText').textContent = `Máximo disponible: ${product.cantidad_disponible}`;
     setLoanDateToToday();
     document.getElementById('loanModal').classList.add('active');
     document.getElementById('loanName').focus();
@@ -551,13 +555,17 @@ function closeLoanModal() {
 async function confirmLoan() {
     const usuario = document.getElementById('loanName').value.trim();
     const fecha = document.getElementById('loanDate').value;
+    const cantidad = parseInt(document.getElementById('loanQuantity').value) || 1;
 
     if (!usuario || !loanProductId) {
-        return alert('Complete usuario y fecha.');
+        return alert('Complete usuario y cantidad.');
     }
 
     const product = products.find(p => p.id === loanProductId);
-    const cantidad = 1; // Por defecto 1
+    
+    if (cantidad > product.cantidad_disponible) {
+        return alert(`Solo hay ${product.cantidad_disponible} disponibles`);
+    }
 
     try {
         const res = await apiCall(`/api/products/${loanProductId}/reserve`, 'POST', {
