@@ -12,12 +12,56 @@ let viewMode = 'cards';
 let selectedUserId = null;
 
 const emojiMap = {
-    componentes: '🔧',
-    perifericos: '🖱️',
-    monitores: '🖥️',
+    accesorios: '📦',
+    adaptadores: '🔌',
+    almacenamiento: '💾',
+    altavoces: '🔊',
+    auriculares: '🎧',
+    baterias: '🔋',
     cables: '🔌',
+    componentes: '🔧',
+    conectores: '🔗',
+    consumibles: '🗂️',
+    disipadores: '🧊',
+    docking: '🚪',
+    escanneres: '📠',
+    fotocopiadoras: '📋',
+    firewalls: '🛡️',
+    fuentes: '🔋',
+    'fuentes-externas': '⚡',
+    herramientas: '🔨',
+    hubs: '🔀',
+    impresoras: '🖨️',
+    licencias: '📜',
+    limpiezas: '🧹',
+    memoria: '🧠',
+    microfonos: '🎤',
+    modems: '📶',
+    monitores: '🖥️',
+    mochilas: '🎒',
+    papel: '📄',
+    'patch-panels': '📋',
+    perifericos: '🖱️',
+    placas: '🔲',
+    procesadores: '⚙️',
+    refrigeracion: '❄️',
+    routers: '📡',
+    seguridad: '🔐',
+    servidores: '💻',
+    'servidores-almacen': '💾',
     software: '💾',
-    accesorios: '📦'
+    switches: '🔄',
+    soportes: '🖼️',
+    ups: '⚡',
+    'tarjetas-graficas': '🎮',
+    'tarjetas-red': '🌐',
+    'tinta-toner': '🖨️',
+    tornilleria: '🔩',
+    torres: '🏠',
+    varios: '📦',
+    ventiladores: '🌀',
+    webcams: '📹',
+    'pasta-termica': '🧴'
 };
 
 // ==================== AUTENTICACIÓN ====================
@@ -294,7 +338,7 @@ function render() {
             <div class="item-info">
                 <div class="info-row"><span class="info-label">Total:</span><span class="quantity-badge">${item.cantidad_total}</span></div>
                 <div class="info-row"><span class="info-label">Disp.:</span><span class="quantity-badge">${item.cantidad_disponible}</span></div>
-                <div class="info-row"><span class="info-label">Reserv.:</span><span>${item.reservado || 0}</span></div>
+                <div class="info-row"><span class="info-label">Reserv.:</span><span class="quantity-badge">${item.reservado || 0}</span></div>
                 <div class="info-row"><span class="info-label">Categoría:</span><span>${formatCategory(item.categoria)}</span></div>
                 <div class="info-row"><span class="info-label">Serie:</span><span>${item.serie || '—'}</span></div>
                 ${item.caracteristicas ? `<div class="info-row"><span class="info-label">Características:</span><span class="characteristics-text">${item.caracteristicas}</span></div>` : ''}
