@@ -22,6 +22,7 @@ body {
     color: var(--text-dark);
     min-height: 100vh;
     overflow-x: hidden;
+    padding: 0px 50px 40px;
 }
 
 .container {
@@ -37,15 +38,13 @@ body {
 }
 
 .user-info-card {
-    background: rgba(255, 255, 255, 0.82);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 15px 20px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(6px);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
 }
 
 .header {
@@ -61,15 +60,17 @@ body {
 
 .header .logo-wrapper {
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 18px;
+    gap: 10px;
     margin-bottom: 16px;
+    text-align: center;
 }
 
 .logo-wrapper img,
 .logo-wrapper svg {
-    width: 92px;
+    width: 300px;
     height: auto;
     transition: transform 0.2s ease;
 }
@@ -515,21 +516,27 @@ textarea.form-input {
 
 .login-container {
     width: 100%;
-    max-width: 420px;
-    padding: 20px;
+    max-width: 400px;
+    padding: 15px;
 }
 
 .login-box {
     background: white;
     border-radius: 16px;
-    padding: 40px;
+    padding: 10px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 .login-logo {
-    width: 80px;
+    width: 160px;
     height: auto;
-    margin: 0 auto 20px;
+}
+
+.logo-wrapper img,
+.logo-wrapper svg {
+    width: 160px;
+    height: auto;
+    transition: transform 0.2s ease;
 }
 
 .login-box h1 {
