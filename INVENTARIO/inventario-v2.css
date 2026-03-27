@@ -220,6 +220,38 @@ textarea.form-input {
     border-color: var(--secondary);
 }
 
+.export-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 15px 0;
+    padding: 12px;
+    background: #f8f9ff;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+}
+
+.export-section .export-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-right: 8px;
+}
+
+.export-section .btn {
+    font-size: 0.85rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.export-section .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 .btn {
     padding: 12px 15px;
     border: none;

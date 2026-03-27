@@ -245,6 +245,16 @@
                     </select>
                 </div>
 
+                <div class="export-section">
+                    <div class="export-label">Exportar:</div>
+                    <button class="btn btn-success" onclick="exportInventory()">
+                        📊 Exportar Inventario (Excel)
+                    </button>
+                    <button class="btn btn-info" onclick="exportReservations()">
+                        📋 Exportar Reservas (Excel)
+                    </button>
+                </div>
+
                 <button class="btn btn-primary" id="toggleFormBtn" onclick="toggleForm()">
                     <span style="font-size: 1.3em;">+</span> Añadir Producto
                 </button>
@@ -298,13 +308,18 @@
 
                 <div class="form-group">
                     <label class="form-label">Imagen del producto</label>
-                    <input
-                        type="file"
-                        class="form-input"
-                        id="inputImage"
-                        accept="image/*"
-                        capture="environment"
-                    />
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input
+                            type="file"
+                            class="form-input"
+                            id="inputImage"
+                            accept="image/*"
+                            style="flex: 1;"
+                        />
+                        <button type="button" class="btn btn-secondary" onclick="activateCamera()" style="white-space: nowrap;">
+                            📷 Activar Cámara
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -363,17 +378,9 @@
                     </select>
                 </div>
 
-                <div class="form-group" style="margin-top: 10px;">
-                    <label class="form-label">Host para móvil (ej: 192.168.1.50)</label>
-                    <input type="text" class="form-input" id="mobileUploadHost" placeholder="Dejar vacío usa host actual" />
-                </div>
                 <button class="btn btn-success" onclick="addItem()" style="margin-top: 10px;">
                     <span>✓</span> Guardar producto
                 </button>
-                <button class="btn btn-secondary" onclick="generateMobileUploadQR()" style="margin-top: 10px;">
-                    📱 Generar QR para subida desde móvil
-                </button>
-                <div id="qrPreview" style="margin-top: 12px;"></div>
             </div>
 
             <!-- Items Container -->
@@ -483,6 +490,30 @@
                 </button>
                 <button class="btn btn-secondary" onclick="closeDeleteUserModal()">
                     ✕ Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div class="modal-overlay" id="cameraModal">
+        <div class="modal">
+            <h3>Capturar Imagen</h3>
+            <div style="text-align: center; margin: 20px 0;">
+                <div id="cameraPreview" style="display: none;">
+                    <video id="cameraVideo" autoplay playsinline style="width: 100%; max-width: 400px; border-radius: 8px;"></video>
+                    <canvas id="cameraCanvas" style="display: none;"></canvas>
+                    <div style="margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="switchCamera()" style="font-size: 0.9em;">🔄 Cambiar Cámara</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions" id="cameraActions" style="display: none;">
+                <button class="btn btn-primary" onclick="captureImage()">
+                    📸 Capturar
+                </button>
+                <button class="btn btn-secondary" onclick="closeCameraModal()">
+                    ✕ Cerrar
                 </button>
             </div>
         </div>

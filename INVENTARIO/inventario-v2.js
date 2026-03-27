@@ -534,6 +534,204 @@ function closeDeleteUserModal() {
     selectedUserId = null;
 }
 
+// ==================== FUNCIONES DE CÁMARA ====================
+let cameraStream = null;
+let currentFacingMode = 'environment'; // Por defecto trasera
+
+async function activateCamera() {
+    try {
+        const video = document.getElementById('cameraVideo');
+        const modal = document.getElementById('cameraModal');
+        const preview = document.getElementById('cameraPreview');
+        const actions = document.getElementById('cameraActions');
+        
+        // Detener stream anterior si existe
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Solicitar acceso a la cámara trasera
+        cameraStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' },
+            audio: false 
+        });
+        
+        currentFacingMode = 'environment';
+        video.srcObject = cameraStream;
+        
+        // Mostrar modal con preview
+        preview.style.display = 'block';
+        actions.style.display = 'flex';
+        modal.classList.add('active');
+    } catch (error) {
+        console.error('Error accediendo a la cámara:', error);
+        alert('No se pudo acceder a la cámara trasera. Asegúrate de que el navegador tenga permisos y que tu dispositivo tenga cámara.');
+    }
+}
+
+async function selectCamera(facingMode) {
+    try {
+        const video = document.getElementById('cameraVideo');
+        
+        // Detener stream anterior si existe
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Solicitar acceso a la cámara seleccionada
+        cameraStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: facingMode },
+            audio: false 
+        });
+        
+        currentFacingMode = facingMode;
+        video.srcObject = cameraStream;
+    } catch (error) {
+        console.error('Error accediendo a la cámara:', error);
+        throw error; // Re-throw para que switchCamera lo maneje
+    }
+}
+
+async function switchCamera() {
+    const newFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+    try {
+        await selectCamera(newFacingMode);
+    } catch (error) {
+        // Si falla, intentar sin facingMode específico (algunos dispositivos)
+        try {
+            await selectCameraWithoutFacing();
+        } catch (secondError) {
+            alert('No se pudo cambiar a la otra cámara. Es posible que tu dispositivo no tenga la cámara solicitada o esté deshabilitada.');
+        }
+    }
+}
+
+async function selectCameraWithoutFacing() {
+    const video = document.getElementById('cameraVideo');
+    
+    // Detener stream anterior si existe
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Solicitar acceso a cualquier cámara disponible
+    cameraStream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, // Sin facingMode específico
+        audio: false 
+    });
+    
+    currentFacingMode = 'any'; // Marcar como cualquier
+    video.srcObject = cameraStream;
+}
+
+function closeCameraModal() {
+    const modal = document.getElementById('cameraModal');
+    const preview = document.getElementById('cameraPreview');
+    const actions = document.getElementById('cameraActions');
+    
+    modal.classList.remove('active');
+    
+    // Reset modal state
+    preview.style.display = 'none';
+    actions.style.display = 'none';
+    currentFacingMode = 'environment'; // Reset a trasera
+    
+    // Detener el stream de la cámara
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+}
+
+function captureImage() {
+    const video = document.getElementById('cameraVideo');
+    const canvas = document.getElementById('cameraCanvas');
+    const inputImage = document.getElementById('inputImage');
+    
+    if (!video.srcObject) return;
+    
+    // Configurar canvas
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Dibujar el frame actual del video en el canvas
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convertir a blob y crear un File
+    canvas.toBlob(blob => {
+        const file = new File([blob], 'captura-camara.jpg', { type: 'image/jpeg' });
+        
+        // Crear un DataTransfer para asignar el archivo al input
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        inputImage.files = dt.files;
+        
+        // Cerrar modal
+        closeCameraModal();
+    }, 'image/jpeg', 0.8);
+}
+
+// ==================== FUNCIONES DE EXPORTACIÓN ====================
+
+async function exportInventory() {
+    try {
+        const response = await fetch('/api/export/inventory', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al descargar el archivo');
+        }
+        
+        // Crear blob y descargar
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'inventario.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error exportando inventario:', error);
+        alert('Error al exportar el inventario. Inténtalo de nuevo.');
+    }
+}
+
+async function exportReservations() {
+    try {
+        const response = await fetch('/api/export/reservations', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al descargar el archivo');
+        }
+        
+        // Crear blob y descargar
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'reservas.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error exportando reservas:', error);
+        alert('Error al exportar las reservas. Inténtalo de nuevo.');
+    }
+}
+
 async function confirmDeleteUser() {
     if (!selectedUserId) return;
 
@@ -606,40 +804,14 @@ async function addItem() {
     }
 }
 
-async function generateMobileUploadQR() {
-    try {
-        const res = await apiCall('/api/mobile-upload-token', 'POST');
-        if (!res.ok) {
-            const err = await res.json();
-            return alert(err.error || 'No se pudo generar token móvil');
-        }
-        const data = await res.json();
-        const hostInput = document.getElementById('mobileUploadHost').value.trim();
-        const host = hostInput || window.location.hostname;
-        const protocol = window.location.protocol;
-        const port = window.location.port ? `:${window.location.port}` : '';
-        const baseUrl = `${protocol}//${host}${port}`;
-        const url = `${baseUrl}/mobile-upload.html?token=${encodeURIComponent(data.token)}`;
-        const qrCode = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(url)}`;
-        const preview = document.getElementById('qrPreview');
-        preview.innerHTML = `<p style="margin-bottom:5px;">Escanea este QR con el móvil (o abre URL desde el navegador móvil):</p><img src="${qrCode}" alt="QR Mobile Upload" style="max-width:100%; border: 1px solid #ddd; border-radius: 8px;" />`;
-        preview.innerHTML += `<p><small>URL: <a href="${url}" target="_blank">${url}</a></small></p>`;
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            preview.innerHTML += `<p style="color:#c66;"><strong>Important:</strong> usa la IP de tu PC en la red local (ej: 192.168.1.50) en el campo arriba para que tu móvil pueda conectarse.</p>`;
-        }
-    } catch (error) {
-        console.error(error);
-        alert('Error al generar QR para móvil');
-    }
-}
-
+// Eliminar producto
 async function deleteItem(id) {
     if (!confirm('¿Seguro eliminar este producto?')) return;
-    
+
     try {
         const res = await apiCall(`/api/products/${id}`, 'DELETE');
         if (!res.ok) throw new Error('Error al eliminar');
-        
+
         await refreshData();
     } catch (error) {
         console.error(error);
@@ -769,6 +941,13 @@ window.addEventListener('DOMContentLoaded', () => {
     if (deleteUserModal) {
         deleteUserModal.addEventListener('click', e => {
             if (e.target === e.currentTarget) closeDeleteUserModal();
+        });
+    }
+
+    const cameraModal = document.getElementById('cameraModal');
+    if (cameraModal) {
+        cameraModal.addEventListener('click', e => {
+            if (e.target === e.currentTarget) closeCameraModal();
         });
     }
 });

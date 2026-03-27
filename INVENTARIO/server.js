@@ -9,6 +9,7 @@ const https = require('https');
 const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
+const ExcelJS = require('exceljs');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -419,51 +420,7 @@ app.post('/api/products', verifyToken, requireRole(['admin', 'user']), upload.si
   }
 });
 
-// Crear token temporal para subida desde móvil vía QR (admin/user)
-app.post('/api/mobile-upload-token', verifyToken, requireRole(['admin', 'user']), (req, res) => {
-  const token = crypto.randomUUID ? crypto.randomUUID() : require('crypto').randomBytes(16).toString('hex');
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutos
-  mobileUploadTokens.set(token, expiresAt);
-  res.json({ token });
-});
 
-// Subida desde móvil con token temporal (no requiere JWT)
-app.post('/api/mobile-upload', upload.single('image'), async (req, res) => {
-  try {
-    const { token, nombre, serie, caracteristicas, categoria, cantidad } = req.body;
-
-    if (token) {
-      if (!mobileUploadTokens.has(token)) {
-        return res.status(403).json({ error: 'Token móvil inválido o expirado' });
-      }
-
-      const expiresAt = mobileUploadTokens.get(token);
-      if (!expiresAt || Date.now() > expiresAt) {
-        mobileUploadTokens.delete(token);
-        return res.status(403).json({ error: 'Token móvil expirado' });
-      }
-
-      mobileUploadTokens.delete(token);
-    }
-
-    if (!nombre || !categoria || !cantidad || cantidad <= 0) {
-      return res.status(400).json({ error: 'Datos inválidos' });
-    }
-
-    const imagePath = req.file ? `/images/${req.file.filename}` : null;
-
-    const [result] = await pool.query(
-      'INSERT INTO products (nombre, serie, caracteristicas, categoria, cantidad_total, cantidad_disponible, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [nombre, serie || '', caracteristicas || '', categoria, cantidad, cantidad, imagePath]
-    );
-
-    const [newProductRows] = await pool.query('SELECT * FROM products WHERE id = ?', [result.insertId]);
-    res.json(newProductRows[0]);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message || 'Error al subir producto desde móvil' });
-  }
-});
 
 // Eliminar producto (admin y user)
 app.delete('/api/products/:id', verifyToken, requireRole(['admin', 'user']), async (req, res) => {
@@ -583,6 +540,108 @@ app.patch('/api/products/:id', verifyToken, requireRole(['admin', 'user']), asyn
   }
 });
 
+// ==================== EXPORTACIÓN A EXCEL ====================
+
+// Exportar inventario a Excel
+app.get('/api/export/inventory', verifyToken, async (req, res) => {
+  try {
+    const [products] = await pool.query(`
+      SELECT id, nombre, serie, caracteristicas, categoria, cantidad_total, cantidad_disponible, 
+             DATE_FORMAT(fecha_anadido, '%Y-%m-%d %H:%i:%s') as fecha_creacion
+      FROM products ORDER BY categoria, nombre
+    `);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Inventario');
+
+    // Encabezados
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Nombre', key: 'nombre', width: 30 },
+      { header: 'Número de Serie', key: 'serie', width: 25 },
+      { header: 'Características', key: 'caracteristicas', width: 40 },
+      { header: 'Categoría', key: 'categoria', width: 20 },
+      { header: 'Cantidad Total', key: 'cantidad_total', width: 15 },
+      { header: 'Cantidad Disponible', key: 'cantidad_disponible', width: 18 },
+      { header: 'Fecha de Creación', key: 'fecha_creacion', width: 20 }
+    ];
+
+    // Estilo de encabezados
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4CAF50' }
+    };
+
+    // Agregar datos
+    products.forEach(product => {
+      worksheet.addRow(product);
+    });
+
+    // Configurar respuesta
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=inventario.xlsx');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error exportando inventario:', error);
+    res.status(500).json({ error: 'Error al exportar inventario' });
+  }
+});
+
+// Exportar reservas a Excel
+app.get('/api/export/reservations', verifyToken, async (req, res) => {
+  try {
+    const [reservations] = await pool.query(`
+      SELECT r.id, p.nombre as producto, r.usuario, r.cantidad, r.estado,
+             DATE_FORMAT(r.fecha, '%Y-%m-%d') as fecha_prestamo,
+             DATE_FORMAT(r.fecha_creado, '%Y-%m-%d %H:%i:%s') as fecha_creacion
+      FROM reservations r
+      JOIN products p ON r.product_id = p.id
+      ORDER BY r.fecha_creado DESC
+    `);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Reservas');
+
+    // Encabezados
+    worksheet.columns = [
+      { header: 'ID Reserva', key: 'id', width: 12 },
+      { header: 'Producto', key: 'producto', width: 30 },
+      { header: 'Usuario', key: 'usuario', width: 20 },
+      { header: 'Cantidad', key: 'cantidad', width: 10 },
+      { header: 'Estado', key: 'estado', width: 12 },
+      { header: 'Fecha Préstamo', key: 'fecha_prestamo', width: 20 },
+      { header: 'Fecha Creación', key: 'fecha_creacion', width: 20 }
+    ];
+
+    // Estilo de encabezados
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF2196F3' }
+    };
+
+    // Agregar datos
+    reservations.forEach(reservation => {
+      worksheet.addRow(reservation);
+    });
+
+    // Configurar respuesta
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=reservas.xlsx');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error exportando reservas:', error);
+    res.status(500).json({ error: 'Error al exportar reservas' });
+  }
+});
+
 app.use((req, res, next) => {
   if (req.method === 'GET' && req.accepts('html')) {
     res.sendFile(path.join(__dirname, 'inventario-v2.html'));
@@ -598,8 +657,9 @@ initDb().then(() => {
     key: fs.readFileSync('key.pem'),
     cert: fs.readFileSync('cert.pem')
   };
-  https.createServer(options, app).listen(port, () => {
-    console.log(`Servidor ejecutando en https://localhost:${port}`);
+  https.createServer(options, app).listen(port, '0.0.0.0', () => {
+    console.log(`Servidor ejecutando en https://0.0.0.0:${port}`);
+    console.log(`Accede desde móvil a: https://192.168.137.1:${port}`);
     console.log('Credenciales por defecto: admin / admin123');
   });
 }).catch(err => {
